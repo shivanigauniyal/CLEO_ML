@@ -65,16 +65,7 @@ struct SomeZarrStores
   TwoDStorage<size_t> nrainsdsz;
 
   SomeZarrStores(FSStore &store, const int maxchunk,
-                 const unsigned int ngbxs, S sdattrs)
-      : thermoz(store, maxchunk, ngbxs),
-        sdz(store, sdattrs, maxchunk),
-        sdgbxz(store, SdgbxIntoStore(), maxchunk),
-        mmomsz(store, maxchunk, ngbxs),
-        rainmmomsz(store, maxchunk, ngbxs),
-        timez(make_timezarr(store, maxchunk)),
-        gbxz(make_gbxzarr(store, maxchunk)),
-        nsdsz(make_nsuperszarr(store, maxchunk, ngbxs)),
-        nrainsdsz(make_nrainsuperszarr(store, maxchunk, ngbxs)) {}
+                 const unsigned int ngbxs, S sdattrs);
 };
 
 SdmProcess auto
@@ -240,3 +231,17 @@ int main(int argc, char *argv[])
 
   return 0;
 }
+
+template <SuperdropIntoStoreViaBuffer S>
+SomeZarrStores<S>::SomeZarrStores(FSStore &store, const int maxchunk,
+                 const unsigned int ngbxs, S sdattrs)
+/* constructor for outputing data (edit if you are advanced user only) */
+      : thermoz(store, maxchunk, ngbxs),
+        sdz(store, sdattrs, maxchunk),
+        sdgbxz(store, SdgbxIntoStore(), maxchunk),
+        mmomsz(store, maxchunk, ngbxs),
+        rainmmomsz(store, maxchunk, ngbxs),
+        timez(make_timezarr(store, maxchunk)),
+        gbxz(make_gbxzarr(store, maxchunk)),
+        nsdsz(make_nsuperszarr(store, maxchunk, ngbxs)),
+        nrainsdsz(make_nrainsuperszarr(store, maxchunk, ngbxs)) {}
