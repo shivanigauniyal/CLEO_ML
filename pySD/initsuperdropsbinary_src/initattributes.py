@@ -8,10 +8,10 @@ def nsupers_at_domain_base(gridfile, constsfile, nsupers, zlim):
     only occur in gridboxes with upper bound <= zlim '''
     
     COORD0 = rgrid.get_COORD0_from_constsfile(constsfile)
-    gbxbounds, ndims = rgrid.read_dimless_gbxboundaries_binary(gridfile,
-                                                            COORD0=COORD0,
-                                                            return_ndims=True,
-                                                            isprint=False)
+    gbxbounds = rgrid.read_dimless_gbxboundaries_binary(gridfile,
+                                                        COORD0=COORD0,
+                                                        return_ndims=True,
+                                                        isprint=False)[0]
     nsupersdict = {}
     for ii in gbxbounds.keys():
         gbx_zupper = gbxbounds[ii][1]  # z upper bound of gridbox  
@@ -21,6 +21,27 @@ def nsupers_at_domain_base(gridfile, constsfile, nsupers, zlim):
             nsupersdict[ii] = 0
     
     return nsupersdict
+
+
+def nsupers_at_domain_top(gridfile, constsfile, nsupers, zlim):
+    ''' create dict for sd initialisation where nsupers
+    only occur in gridboxes with upper bound <= zlim '''
+    
+    COORD0 = rgrid.get_COORD0_from_constsfile(constsfile)
+    gbxbounds = rgrid.read_dimless_gbxboundaries_binary(gridfile,
+                                                        COORD0=COORD0,
+                                                        return_ndims=True,
+                                                        isprint=False)[0]
+    nsupersdict = {}
+    for ii in gbxbounds.keys():
+        gbx_zlower = gbxbounds[ii][0]  # z upper bound of gridbox  
+        if (gbx_zlower > zlim):
+            nsupersdict[ii] = nsupers
+        else:
+            nsupersdict[ii] = 0
+    
+    return nsupersdict
+
 
 class MonoAttrsGen:
     ''' method to generate superdroplets with an
