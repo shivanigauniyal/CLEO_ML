@@ -44,22 +44,17 @@ ygrid         = np.asarray([0, 20]) # [m]
 
 ### --------- INPUT PARAMETERS FOR THERMODYNAMICS BINARIES --------- ###
 ### Choose Initial Thermodynamic Conditions for Gridboxes ###
-PRESS0        = 101500                                      # [Pa]
-THETA         = 289                                         # [K]
-qvap          = "sratio"                                    # key for calculating initial vapour mass mixing ratio
-Zbase         = 2000                                        # [m]
-relhratios    = [0.95, 1.0001]                              # relative humidity [below, above] Zbase
-moistlayer    = False                                       # no moist layer at Zbase
-qcond         = 0                                           # [Kg/Kg]
-WMAX          = None                                        # [m/s]
-VVEL          = None                                        # [m/s]
-Zlength       = 0                                           # [m]
-Xlength       = 0                                           # [m]
-thermodyngen = thermogen.ConstHydrostaticAdiabat(configfile, constsfile,
-                                                 PRESS0, THETA, qvap,
-                                                 relhratios, Zbase,
-                                                 qcond, WMAX, Zlength,
-                                                 Xlength, VVEL, moistlayer)
+P_INIT = 100000.0                       # initial pressure [Pa]
+TEMP_INIT = 273.15                      # initial parcel temperature [T]
+relh_init = 95.0                        # initial relative humidity (%)
+qc_init = 0.0                           # initial liquid water content []
+W_INIT = 0.0                            # initial vertical (z) velocity [m/s]
+U_INIT = 0.0                            # initial horizontal x velocity [m/s]
+V_INIT = 0.0                            # initial horizontal y velocity [m/s]
+thermodyngen = thermogen.ConstUniformThermo(P_INIT, TEMP_INIT, None,
+                                            qc_init, W_INIT, U_INIT,
+                                            V_INIT, relh=relh_init,
+                                            constsfile=constsfile)
 
 ### -------------- INPUT PARAMETERS FOR SDs BINARY ----------------- ###
 ### Number of Superdroplets (an int or dict of ints) ###
