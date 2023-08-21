@@ -48,6 +48,29 @@ def read_dimless_superdrops_binary(filename, isprint=True):
     
     return attrs
 
+def print_initSDs_infos(initSDsfile, configfile, constsfile, gridfile):
+    gbxvols = np.asarray(get_gbxvols_from_gridfile(gridfile,
+                                        constsfile=constsfile,
+                                        isprint=False))
+    
+    attrs = get_superdroplet_attributes(configfile,
+                                        constsfile,
+                                        initSDsfile)  
+    
+    eps = attrs.eps.flatten()
+    vol = np.sum(gbxvols)
+    numconc = np.sum(eps)/vol / 1e6 #[/cm^3]
+    massconc = np.sum(attrs.m_sol.flatten() * eps) / vol * 1000 #[g m^-3]
+    dropvol = 4/3 * np.pi * np.sum((attrs.radius.flatten()**3) * eps) 
+    m_w_conc = dropvol * 1000 / vol * 1000 # mass as if drops had density of water=1000Kg/m^3 [g m^3]
+
+    inforstr = "\n------ DOMAIN SUPERDROPLETS INFO ------\n"+\
+    "total droplet number conc: {:3g}".format(numconc)+" /cm^3\n"+\
+    "total droplet mass:        {:3g}".format(massconc)+" g/m^3\n"+\
+    "       as if water:        {:3g}".format(m_w_conc)+" g/m^3"+\
+    "\n------------------------------------\n"
+    print(inforstr)
+
 def plot_initdistribs(attrs, gbxvols, gbxidxs):
 
     plt.rcParams.update({'font.size': 14})
