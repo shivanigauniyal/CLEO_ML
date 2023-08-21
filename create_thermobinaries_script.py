@@ -40,6 +40,13 @@ thermodyngen = thermogen.ConstHydrostaticAdiabat(configfile, constsfile,
 ### ---------------------------------------------------------------- ###
 
 ### -------------------- BINARY FILE GENERATION--------------------- ###
+### ensure build, share and bin directories exist ###
+if path2CLEO == path2build:
+  raise ValueError("build directory cannot be CLEO")
+else:
+  Path(path2build).mkdir(exist_ok=True) 
+  Path(binariespath).mkdir(exist_ok=True) 
+  
 cthermo.write_thermodynamics_binary(thermofiles, thermodyngen, configfile,
                                     constsfile, gridfile)
 
