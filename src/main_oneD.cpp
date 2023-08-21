@@ -11,6 +11,7 @@ collision-coalescence-breakup-rebound kernel */
 /* standard library packages */
 #include <stdexcept>
 #include <string>
+#include <iostream>
 
 #include <Kokkos_Core.hpp>
 
@@ -34,11 +35,14 @@ collision-coalescence-breakup-rebound kernel */
 #include "massmomentsstorage.hpp"
 #include "zarrstorage/sdattributes_intostore.hpp"
 #include "zarrstorage/contigraggedsdstorage.hpp"
+#include "zarrstorage/thermostatestorage.hpp"
 #include "zarrstorage/zarrstores.hpp"
 
 /* sdm superdroplets setup */
 #include "superdrop_solver/thermodynamic_equations.hpp"
 #include "superdrop_solver/sdmprocess.hpp"
+#include "superdrop_solver/coalescence.hpp"
+#include "superdrop_solver/condensation.hpp"
 #include "superdrop_solver/terminalvelocity.hpp"
 
 /* thermodynamics solver and coupled model setup */
@@ -47,7 +51,31 @@ collision-coalescence-breakup-rebound kernel */
 namespace dlc = dimless_constants;
 
 template <SuperdropIntoStoreViaBuffer S>
-struct SomeZarrStores;
+struct SomeZarrStores
+/* structures for outputing data (edit if you are advanced user only) */
+{
+  ThermoStateStorage thermoz;
+  ContiguousRaggedSDStorage<S> sdz;
+  ContiguousRaggedSDStorage<SdgbxIntoStore> sdgbxz;
+  MomentsStorages mmomsz;
+  RainMomentsStorages rainmmomsz;
+  CoordinateStorage<double> timez;
+  CoordinateStorage<unsigned int> gbxz;
+  TwoDStorage<size_t> nsdsz;
+  TwoDStorage<size_t> nrainsdsz;
+
+  SomeZarrStores(FSStore &store, const int maxchunk,
+                 const unsigned int ngbxs, S sdattrs)
+      : thermoz(store, maxchunk, ngbxs),
+        sdz(store, sdattrs, maxchunk),
+        sdgbxz(store, SdgbxIntoStore(), maxchunk),
+        mmomsz(store, maxchunk, ngbxs),
+        rainmmomsz(store, maxchunk, ngbxs),
+        timez(make_timezarr(store, maxchunk)),
+        gbxz(make_gbxzarr(store, maxchunk)),
+        nsdsz(make_nsuperszarr(store, maxchunk, ngbxs)),
+        nrainsdsz(make_nrainsuperszarr(store, maxchunk, ngbxs)) {}
+};
 
 SdmProcess auto
 create_sdmprocess(const Config &config, const SDMTimesteps &mdlsteps)
@@ -141,7 +169,7 @@ that does combination of the observers 'obs1' and 'obs2' */
   const auto og3 = ObserveThermoState(stores.thermoz);
 
   const auto og4 = observe_totalmassmoms(stores.mmomsz, ngbxs);
-  const auto og5 = observe_rainmassmoms(stores.rainmmoms, ngbxs);
+  const auto og5 = observe_rainmassmoms(stores.rainmmomsz, ngbxs);
   const auto og6 = ObserveNsupersPerGridBox(stores.nsdsz, ngbxs);
   const auto og7 = ObserveNRainsupersPerGridBox(stores.nrainsdsz, ngbxs);
 
@@ -156,7 +184,7 @@ that does combination of the observers 'obs1' and 'obs2' */
 
   const Observer auto observer = obs2 >> obs1;
   // const Observer auto observer = obs1;
-  return observer
+  return observer;
 }
 
 int main(int argc, char *argv[])
@@ -185,7 +213,8 @@ int main(int argc, char *argv[])
   const auto sdmprocess(create_sdmprocess(config, mdlsteps));
 
   /* create method for SD motion in SDM */
-  const auto sdmmotion(create_sdmotion(mdlsteps.motionstep));
+  const MoveSuperdropsInDomain
+      sdmmotion(create_sdmotion(mdlsteps.motionstep));
 
   /* create observer from combination of chosen observers */
   const NullDetectorsPtr dtrs{};
@@ -211,31 +240,3 @@ int main(int argc, char *argv[])
 
   return 0;
 }
-
-template <SuperdropIntoStoreViaBuffer S>
-struct SomeZarrStores
-/* structures for outputing data (edit if you are advanced user only) */
-{
-  SomeZarrStores();
-  ThermoStateStorage thermoz;
-  ContiguousRaggedSDStorage<S> sdz;
-  ContiguousRaggedSDStorage<SdgbxIntoStore> sdgbxz;
-  MomentsStorages mmomsz;
-  RainMomentsStorages rainmmomsz;
-  CoordinateStorage<double> timez;
-  CoordinateStorage<unsigned int> gbxz;
-  TwoDStorage<size_t> nsdsz;
-  TwoDStorage<size_t> nrainsdsz;
-  
-  SomeZarrStores(FSStore &store, const int maxchunk,
-                               const unsigned int ngbxs, S sdattrs)
-    : thermoz(store, maxchunk, ngbxs),
-      sdz(store, sdattrs, maxchunk),
-      sdgbxz(store, SdgbxIntoStore(), maxchunk),
-      mmomsz(store, maxchunk, ngbxs),
-      rainmmomsz(store, maxchunk, ngbxs),
-      timez(make_timezarr(store, maxchunk)),
-      gbxz(make_gbxzarr(store, maxchunk)),
-      nsdsz(make_nsuperszarr(store, maxchunk, ngbxs)),
-      nrainsdsz(make_nrainsuperszarr(store, maxchunk, ngbxs)) {}
-};
