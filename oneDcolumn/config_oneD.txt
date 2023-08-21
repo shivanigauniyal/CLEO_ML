@@ -6,14 +6,13 @@
 # SD(s) = SuperDroplet(s)
 # GBx(s) = GridBox(es)
 
-#  Note: inital superdroplets data (id, eps, radius, m_sol and coord3)
-#  are read from file "initSDs_filename" which can be made using pySD
-#  module e.g. via "create_initsuperdropsbinary_script.py" script.
-#  Likewise data to make gridboxmap from gridbox boundaries is read
-#  from file "grid_filename" binary which can be created using
-#  pySD and the "create_gbxboundariesbinary_script.py" script.
-#  When read from file, thermodynamics can also be created using
-#  pySD and python "create_thermobinaries_script.py" script.
+#  Note: inital superdrops data (id, eps, radius, m_sol and coord3) are read
+#  read from "initSDs_filename" binary file. Likewise data to make gridboxmap
+#  from gridbox boundaries is read from the "grid_filename" binary, and
+#  thermodynamics can be read from binary files under [XXX]_filename =
+#  "dimlessthermo_[XXX].dat" (e.g. for pressure [XXX] = press). All of these
+#  binary files can be made using the pySD module, for example as done in
+#  the python script "create_oneD_inputbinaries.py".
 
 ### Initialisation Files parameters ###
 initSDs_filename = ./share/dimlessSDsinit.dat       # binary filename for initialisation of SDs
