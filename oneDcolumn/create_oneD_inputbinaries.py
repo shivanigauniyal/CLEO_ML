@@ -2,19 +2,24 @@ import sys
 import numpy as np
 from pathlib import Path
 
+path2pySD     = sys.argv[1]
+sys.path.append(path2pySD)
 from pySD.gbxboundariesbinary_src.create_gbxboundaries import *
 from pySD.gbxboundariesbinary_src.read_gbxboundaries import *
 from pySD.initsuperdropsbinary_src import initattributes as iSDs
 from pySD.initsuperdropsbinary_src import radiiprobdistribs as rprobs
 from pySD.initsuperdropsbinary_src import create_initsuperdrops as csupers 
 from pySD.initsuperdropsbinary_src import read_initsuperdrops as rsupers 
+from pySD.thermobinary_src import thermogen
+from pySD.thermobinary_src import create_thermodynamics as cthermo
+from pySD.thermobinary_src import read_thermodynamics as rthermo
 
 ### ---------------------------------------------------------------- ###
 ### ----------------------- INPUT PARAMETERS ----------------------- ###
 ### ---------------------------------------------------------------- ###
 
 ### Essential Absolute or Relative Paths and Filenames ###
-path2CLEO     = sys.argv[1]
+path2CLEO     = path2pySD
 path2build    = sys.argv[2]
 configfile    = sys.argv[3]
 constsfile    = path2CLEO+"libs/claras_SDconstants.hpp"
@@ -60,8 +65,6 @@ thermodyngen = thermogen.ConstHydrostaticAdiabat(configfile, constsfile,
 ### Number of Superdroplets (an int or dict of ints) ###
 npergbx = 8                                         # number of SDs per Gridbox (for gridboxes with SDs)
 zlim    = 4000                                      # only have SDs in gridboxes with lower boundary > zlim [m]
-nsupers = iSDs.nsupers_at_domain_top(gridfile, constsfile, npergbx, zlim)
-# nsupers = 1024                                    # all GBxs have this many SDs initially
 
 ### Choice of Superdroplet Radii Generator ###
 rspan                = [1e-8, 9e-5]                 # min and max range of radii to sample [m]
@@ -125,6 +128,7 @@ if isfigures[0]:
 
 ### --------------------- BINARY FILE FOR SDs ---------------------- ###
 ### write initial superdrops binary
+nsupers = iSDs.nsupers_at_domain_top(gridfile, constsfile, npergbx, zlim)
 initattrsgen = iSDs.InitManyAttrsGen(radiigen, radiiprobdist,
                                       coord3gen, coord1gen, coord2gen)
 csupers.write_initsuperdrops_binary(initSDsfile, initattrsgen, 
