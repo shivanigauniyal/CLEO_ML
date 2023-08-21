@@ -35,7 +35,7 @@ def nsupers_at_domain_top(gridfile, constsfile, nsupers, zlim):
     nsupersdict = {}
     for ii in gbxbounds.keys():
         gbx_zlower = gbxbounds[ii][0]  # z upper bound of gridbox  
-        if (gbx_zlower > zlim):
+        if (gbx_zlower >= zlim):
             nsupersdict[ii] = nsupers
         else:
             nsupersdict[ii] = 0
