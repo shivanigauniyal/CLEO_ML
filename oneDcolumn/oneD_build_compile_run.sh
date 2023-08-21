@@ -17,6 +17,7 @@
 module load gcc/11.2.0-gcc-11.2.0
 module load python3/2022.01-gcc-11.2.0
 source activate /work/mh1126/m300950/condaenvs/cleoenv 
+python="python"
 path2CLEO="/home/m/m300950/CLEO_ML/"
 path2build="/home/m/m300950/CLEO_ML/oneDcolumn/build/"
 configfile="/home/m/m300950/CLEO_ML/oneDcolumn/config_oneD.txt"
@@ -36,7 +37,10 @@ mkdir ${path2build}tmp
 tmpconfig="${path2build}/tmp/config.txt"
 echo cp ${configfile} ${tmpconfig}
 cp ${configfile} ${tmpconfig}
-${python} ${path2CLEO}/oneDcolumn/create_oneD_inputbinaries.py ${path2CLEO} ${path2build} ${tmpconfig}
+
+pythoncmd="${python} ${path2CLEO}/oneDcolumn/create_oneD_inputbinaries.py ${path2CLEO} ${path2build} ${tmpconfig}"
+echo ${pythoncmd}
+${pythoncmd}
 
 ### compile CLEO in build directory
 cd ${path2build} && pwd 
