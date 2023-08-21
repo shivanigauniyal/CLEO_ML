@@ -17,9 +17,9 @@
 module load gcc/11.2.0-gcc-11.2.0
 module load python3/2022.01-gcc-11.2.0
 source activate /work/mh1126/m300950/condaenvs/cleoenv 
-path2CLEO=${1}
-path2build=${2}
-configfile=${3}
+path2CLEO="/home/m/m300950/CLEO_ML/"
+path2build="/home/m/m300950/CLEO_ML/oneDcolumn/build/"
+configfile="/home/m/m300950/CLEO_ML/oneDcolumn/config_oneD.txt"
 ### ---------------------------------------------------- ###
 
 ### ------------------- compile_run.sh ----------------- ###
