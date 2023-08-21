@@ -249,4 +249,5 @@ superdroplets from combination of those two seperate observers */
 
   return observer;
 }
+
 #endif // MAIN_SUPPLEMENT_HPP
