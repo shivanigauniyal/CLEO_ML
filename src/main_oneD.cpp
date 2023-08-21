@@ -23,7 +23,6 @@ collision-coalescence-breakup-rebound kernel */
 #include "sdmgridboxes/sdmtimesteps.hpp"
 #include "sdmgridboxes/runsdmstep.hpp"
 #include "sdmgridboxes/sdmotion.hpp"
-#include "sdmgridboxes/detectors.hpp"
 #include "sdmgridboxes/detectors_ptr.hpp"
 
 /* sdm observers setup */
@@ -40,95 +39,124 @@ collision-coalescence-breakup-rebound kernel */
 /* sdm superdroplets setup */
 #include "superdrop_solver/thermodynamic_equations.hpp"
 #include "superdrop_solver/sdmprocess.hpp"
-#include "superdrop_solver/coal_breakup_rebound.hpp"
 #include "superdrop_solver/terminalvelocity.hpp"
 
 /* thermodynamics solver and coupled model setup */
 #include "thermofromfile/run_thermofromfile.hpp"
-#include "thermofromfile/prescribedmotion.hpp"
 
 namespace dlc = dimless_constants;
 
 template <SuperdropIntoStoreViaBuffer S>
-struct SomeZarrStores
+struct SomeZarrStores;
+
+SdmProcess auto
+create_sdmprocess(const Config &config, const SDMTimesteps &mdlsteps)
+/* return an SdmProcess type for condensation and
+collision-coalescence in Superdroplet Model */
 {
-  ContiguousRaggedSDStorage<S> sdzarr;
-  MomentsStorages massmomszarr;
-  CoordinateStorage<double> timezarr;
-  TwoDStorage<size_t> nsuperszarr;
+  /* create process for condensation in SDM */
+  const double cond_subtstep(realtime2dimless(config.cond_SUBTSTEP));
+  const auto cond(CondensationProcess(mdlsteps.condsubstep,
+                                      &step2dimlesstime,
+                                      config.doAlterThermo,
+                                      config.cond_iters,
+                                      cond_subtstep,
+                                      config.cond_rtol,
+                                      config.cond_atol));
 
-  SomeZarrStores(FSStore &store, const int maxchunk,
-                 const unsigned int ngbxs, S sdattrs)
-      : sdzarr(store, sdattrs, maxchunk),
-        massmomszarr(store, maxchunk, ngbxs),
-        timezarr(make_timezarr(store, maxchunk)),
-        nsuperszarr(make_nsuperszarr(store, maxchunk, ngbxs)) {}
-};
+  /* create process for collision-coalescence in SDM */
+  const auto probs_coal(CollCoalProb_Long());
+  const auto coal(CollisionCoalescenceProcess(mdlsteps.collsubstep,
+                                              &step2realtime,
+                                              probs_coal));
+  
+  /* combine condensation and collision-coalescence
+  processes a single process called 'sdmprocess' */
+  const auto sdmprocess = cond >> coal;
+  return sdmprocess;
+}
 
-SuperdropIntoStoreViaBuffer auto sdattrs_to_observe()
-/* choose which methods are used to write attributes
-of a superdroplet into zarr storage */
+SdMotion auto create_sdmotion(const int motionstep)
+/* return an SdMotion type for movement of
+superdroplets in Superdroplet Model */
+{
+  /* superdroplet velocity = wind velocity + terminal 
+  velocity of droplet from Simmel et al. 2002 formula */
+  const auto terminalv(SimmelTerminalVelocity{});
+  const SdMotion auto
+      movewithsedi = MoveWithSedimentation(motionstep,
+                                           &step2dimlesstime,
+                                           terminalv);
+  return movewithsedi;
+}
+
+ObserveGBxs auto
+observe_totalmassmoms(MomentsStorages &mms, const size_t ngbxs)
+/* choose which moments of the entire droplet
+distribution to observe */
+{
+  const auto mom0(ObserveNthMassMoment(mms.mom0zarr, 0, ngbxs));
+  const auto mom1(ObserveNthMassMoment(mms.mom1zarr, 1, ngbxs));
+
+  const auto moms = mom1 >> mom0;
+  return moms;
+}
+
+ObserveGBxs auto
+observe_rainmassmoms(RainMomentsStorages &rmms, const size_t ngbxs)
+/* choose which moments of the raindrop distribution
+to observe. (Note: raindrop = droplet >40 microns) */
+{
+  const auto rain0(ObserveNthRainMassMoment(rmms.mom0zarr, 0, ngbxs));
+  const auto rain1(ObserveNthRainMassMoment(rmms.mom1zarr, 1, ngbxs));
+
+  const auto rainmoms = rain1 >> rain0;
+  return rainmoms;
+}
+
+SuperdropIntoStoreViaBuffer auto
+sdattrs_to_observe()
+/* choose which attributes of a superdroplets to observe */
 {
   SuperdropIntoStoreViaBuffer auto id = IdIntoStore();
   SuperdropIntoStoreViaBuffer auto eps = EpsIntoStore();
   SuperdropIntoStoreViaBuffer auto radius = RadiusIntoStore();
   SuperdropIntoStoreViaBuffer auto m_sol = M_solIntoStore();
+  SuperdropIntoStoreViaBuffer auto coord3 = Coord3IntoStore();
 
-  SuperdropIntoStoreViaBuffer auto attrs = id >> eps >> radius >> m_sol;
-
-  return attrs;
-}
-
-SdmProcess auto create_sdmprocess(const Config &config,
-                                  const SDMTimesteps &mdlsteps)
-/* return an SdmProcess type from SU18 
-collision-coalescence-breakup-rebound method */
-{
-  // const auto probs_coal(CollCoalProb_Long());
-  // const auto sdmprocess(CollisionCoalescenceProcess(mdlsteps.collsubstep,
-  //                                             &step2realtime,
-  //                                             probs_coal));
-
-  const auto probs_coll(CollCoalProb_Long());
-  const auto terminalv(SimmelTerminalVelocity{});
-  const auto sdmprocess(CollisionAllProcess(mdlsteps.collsubstep,
-                                         &step2realtime,
-                                         probs_coll,
-                                         terminalv,
-                                         config.nfrags));
-  return sdmprocess;
-}
-
-ObserveGBxs auto
-create_observegbx_massmoments(MomentsStorages &mms,
-                              const size_t ngbxs)
-{
-  const auto mom0 = ObserveNthMassMoment(mms.mom0zarr, 0, ngbxs);
-  const auto mom1 = ObserveNthMassMoment(mms.mom1zarr, 1, ngbxs);
-  const auto mom2 = ObserveNthMassMoment(mms.mom2zarr, 2, ngbxs);
-
-  return mom2 >> mom1 >> mom0; 
+  return id >> eps >> radius >> m_sol >> coord3;
 }
 
 template <SuperdropIntoStoreViaBuffer S>
-Observer auto create_observer(SomeZarrStores<S> &stores, const int obsstep,
-                              const size_t ngbxs)
-/* return an Observer type from an amalgamation of other observer types.
-For example return an observer that observes both the thermostate and the
-superdroplets from combination of those two seperate observers */
+Observer auto
+create_observer(SomeZarrStores<S> &stores,
+                const int obsstep,
+                const size_t ngbxs)
+/* return an Observer type from an amalgamation of observers.
+For example, obs = obs1 >> obs2 returns a single observer
+that does combination of the observers 'obs1' and 'obs2' */
 {
-  const ObserveGBxs auto og1 = ObserveTime(stores.timezarr);
-  const ObserveGBxs auto og2 = ObserveSDsAttributes(stores.sdzarr);
-  const ObserveGBxs auto og3 = ObserveNsupersPerGridBox(stores.nsuperszarr,
-                                                        ngbxs);
-  const ObserveGBxs auto og4 = create_observegbx_massmoments(stores.massmomszarr,
-                                                             ngbxs);
-  const auto obsgbxs = og4 >> og3 >> og2 >> og1;
+  const auto og1 = ObserveTime(stores.timez);
+  const auto og2 = ObserveGridBoxIndex(stores.gbxz);
+  const auto og3 = ObserveThermoState(stores.thermoz);
 
-  const Observer auto observer = PrintObserver(obsstep) >>
-                                 ConstIntervalGBxsObserver(obsstep, obsgbxs);
+  const auto og4 = observe_totalmassmoms(stores.mmomsz, ngbxs);
+  const auto og5 = observe_rainmassmoms(stores.rainmmoms, ngbxs);
+  const auto og6 = ObserveNsupersPerGridBox(stores.nsdsz, ngbxs);
+  const auto og7 = ObserveNRainsupersPerGridBox(stores.nrainsdsz, ngbxs);
 
-  return observer;
+  const auto og8a = ObserveSDsAttributes(stores.sdz);
+  const auto og8b = ObserveSDsGbxindex(stores.sdgbxz);
+
+  const ObserveGBxs auto ogs = og8b >> og8a >>
+                                   og7 >> og6 >> og5 >> og4 >>
+                                   og3 >> og2 >> og1;
+  const Observer auto obs1 = ConstIntervalGBxsObserver(obsstep, ogs);
+  const Observer auto obs2 = PrintObserver(obsstep);
+
+  const Observer auto observer = obs2 >> obs1;
+  // const Observer auto observer = obs1;
+  return observer
 }
 
 int main(int argc, char *argv[])
@@ -157,23 +185,24 @@ int main(int argc, char *argv[])
   const auto sdmprocess(create_sdmprocess(config, mdlsteps));
 
   /* create method for SD motion in SDM */
-  const MoveSuperdropsInDomain sdmmotion(NullMotion{});
+  const auto sdmmotion(create_sdmotion(mdlsteps.motionstep));
 
   /* create observer from combination of chosen observers */
+  const NullDetectorsPtr dtrs{};
   FSStore fsstore(config.zarrbasedir);
-  SomeZarrStores zarrstores(fsstore, config.maxchunk,
-                            gbxmaps.ngridboxes, sdattrs_to_observe());
+  SomeZarrStores zarrstores(fsstore,
+                            config.maxchunk,
+                            gbxmaps.ngridboxes,
+                            sdattrs_to_observe());
   const auto observer = create_observer(zarrstores,
                                         mdlsteps.obsstep,
                                         gbxmaps.ngridboxes);
 
-  const NullDetectorsPtr dtrs{};
-
+  /* run SDM with thermodynamics from file according to
+  the sdm motion, process and observer constructed above */
   const RunSDMStep sdm(gbxmaps, sdmmotion, sdmprocess, observer);
-
   Kokkos::initialize(argc, argv);
   {
-    /* RUN SDM MODEL WITH THERMODYNAMICS FROM FILE */
     run_thermofromfile(config, sdm, dtrs,
                        mdlsteps.t_end, mdlsteps.couplstep);
   }
@@ -182,3 +211,31 @@ int main(int argc, char *argv[])
 
   return 0;
 }
+
+template <SuperdropIntoStoreViaBuffer S>
+struct SomeZarrStores
+/* structures for outputing data (edit if you are advanced user only) */
+{
+  SomeZarrStores();
+  ThermoStateStorage thermoz;
+  ContiguousRaggedSDStorage<S> sdz;
+  ContiguousRaggedSDStorage<SdgbxIntoStore> sdgbxz;
+  MomentsStorages mmomsz;
+  RainMomentsStorages rainmmomsz;
+  CoordinateStorage<double> timez;
+  CoordinateStorage<unsigned int> gbxz;
+  TwoDStorage<size_t> nsdsz;
+  TwoDStorage<size_t> nrainsdsz;
+  
+  SomeZarrStores(FSStore &store, const int maxchunk,
+                               const unsigned int ngbxs, S sdattrs)
+    : thermoz(store, maxchunk, ngbxs),
+      sdz(store, sdattrs, maxchunk),
+      sdgbxz(store, SdgbxIntoStore(), maxchunk),
+      mmomsz(store, maxchunk, ngbxs),
+      rainmmomsz(store, maxchunk, ngbxs),
+      timez(make_timezarr(store, maxchunk)),
+      gbxz(make_gbxzarr(store, maxchunk)),
+      nsdsz(make_nsuperszarr(store, maxchunk, ngbxs)),
+      nrainsdsz(make_nrainsuperszarr(store, maxchunk, ngbxs)) {}
+};
