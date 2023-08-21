@@ -7,76 +7,46 @@ from pySD.thermobinary_src import create_thermodynamics as cthermo
 from pySD.thermobinary_src import read_thermodynamics as rthermo
 
 ### ----------------------- INPUT PARAMETERS ----------------------- ###
-### --- absolute or relative paths for --- ###
-### ---   build and CLEO directories --- ###
-path2CLEO = sys.argv[1]
-path2build = sys.argv[2]
-configfile = sys.argv[3]
+### Essential Absolute or Relative Paths and Filenames ###
+path2CLEO     = sys.argv[1]
+path2build    = sys.argv[2]
+configfile    = sys.argv[3]
+constsfile    = path2CLEO+"libs/claras_SDconstants.hpp"
+binariespath  = path2build+"/share/"
+savefigpath   = path2build+"/bin/"
+gridfile      = binariespath+"/dimlessGBxboundaries.dat"    # Note: this should match config_oneD.txt
+thermofiles   =  binariespath+"/dimlessthermo.dat"          # note this should be consitent with config_oneD.txt
 
-### booleans for [making+showing, saving] figures
-isfigures = [True, True]
+### Booleans for Plotting Figures of Initial Conditions ###
+isfigures     = [True, True]                                # [making+showing, saving]
 
-### essential paths and filenames
-constsfile = path2CLEO+"libs/claras_SDconstants.hpp"
-binariespath = path2build+"/share/"
-savefigpath = path2build+"/bin/"
-
-gridfile =  binariespath+"/dimlessGBxboundaries.dat" # note this should match config.txt
-thermofile =  binariespath+"/dimlessthermo.dat"
-
-### --- Choose Initial Thermodynamic Conditions for Gridboxes  --- ###
-
-### --- Constant and Uniform --- ###
-P_INIT = 100000.0                       # initial pressure [Pa]
-TEMP_INIT = 273.15                      # initial parcel temperature [T]
-relh_init = 95.0                        # initial relative humidity (%)
-qc_init = 0.0                           # initial liquid water content []
-W_INIT = 0.0                            # initial vertical (z) velocity [m/s]
-U_INIT = 0.0                            # initial horizontal x velocity [m/s]
-V_INIT = 0.0                            # initial horizontal y velocity [m/s]
-thermodyngen = thermogen.ConstUniformThermo(P_INIT, TEMP_INIT, None,
-                                    qc_init, W_INIT, U_INIT, V_INIT,
-                                    relh=relh_init, constsfile=constsfile)
-
-# ### --- 2D Flow Field with Hydrostatic --- ###
-# ### ---       or Simple z Profile      --- ###
-# PRESS0 = 101500 # [Pa]
-# THETA = 289 # [K]
-# qcond = 0.0 # [Kg/Kg]
-# WMAX = 0.6 # [m/s]
-# VVEL = None # [m/s]
-# Zlength = 1500 # [m]
-# Xlength = 1500 # [m]
-
-# qvapmethod = "sratio"
-# Zbase = 750 # [m]
-# sratios = [0.85, 1.0001] # s_ratio [below, above] Zbase
-# # moistlayer = False
-# moistlayer = {
-#     "z1": 700,
-#     "z2": 800,
-#     "x1": 0,
-#     "x2": 750,
-#     "mlsratio": 1.005
-# }
-# thermodyngen = thermogen.ConstHydrostaticAdiabat(configfile, constsfile, PRESS0, 
-#                                         THETA, qvapmethod, sratios, Zbase,
-#                                         qcond, WMAX, Zlength, Xlength,
-#                                         VVEL, moistlayer)
-# thermodyngen = thermogen.SimpleThermo2Dflowfield(configfile, constsfile, PRESS0,
-#                                         THETA, qvapmethod, sratios, Zbase,
-#                                         qcond, WMAX, Zlength, Xlength,
-#                                         VVEL)
+### Choose Initial Thermodynamic Conditions for Gridboxes ###
+PRESS0        = 101500                                      # [Pa]
+THETA         = 289                                         # [K]
+qvap          = "sratio"                                    # key for calculating initial vapour mass mixing ratio
+Zbase         = 2000                                        # [m]
+relhratios    = [0.95, 1.0001]                              # relative humidity [below, above] Zbase
+moistlayer    = False                                       # no moist layer at Zbase
+qcond         = 0                                           # [Kg/Kg]
+WMAX          = None                                        # [m/s]
+VVEL          = None                                        # [m/s]
+Zlength       = 0                                           # [m]
+Xlength       = 0                                           # [m]
+thermodyngen = thermogen.ConstHydrostaticAdiabat(configfile, constsfile,
+                                                 PRESS0, THETA, qvap,
+                                                 relhratios, Zbase,
+                                                 qcond, WMAX, Zlength,
+                                                 Xlength, VVEL, moistlayer)
 ### ---------------------------------------------------------------- ###
 
 ### -------------------- BINARY FILE GENERATION--------------------- ###
-cthermo.write_thermodynamics_binary(thermofile, thermodyngen, configfile,
+cthermo.write_thermodynamics_binary(thermofiles, thermodyngen, configfile,
                                     constsfile, gridfile)
 
 if isfigures[0]:
     if isfigures[1]:
         Path(savefigpath).mkdir(exist_ok=True) 
     rthermo.plot_thermodynamics(constsfile, configfile, gridfile,
-                                          thermofile, savefigpath,
+                                          thermofiles, savefigpath,
                                           isfigures[1])
 ### ---------------------------------------------------------------- ###
